@@ -206,7 +206,7 @@ Messages are JSON strings. The frozen frame travels as binary chunks.
 | `shape` | `id`, `kind` (`path` / `rect` / `text`), `points`, `color`, `text` | draw on the still image |
 | `clear` | none | remove all shapes |
 | `resume` | none | hide still image, show live video |
-| `ack` | `frameId` (customer to agent) | frozen frame received |
+| `ack` | `frameId`, `ok` (customer to agent) | frozen frame received, or `ok: false` on a byte count mismatch |
 | `resumed` | none (customer to agent) | live video shown again |
 
 The agent captures the frozen frame from its own video element at the moment
