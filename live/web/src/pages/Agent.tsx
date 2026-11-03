@@ -40,11 +40,11 @@ export function Agent() {
             )}
           </div>
           <Toolbar tool={tool} onTool={setTool} color={color} onColor={setColor} frozen={!!t.frozen}
-            onFreeze={t.freeze} onResume={resume} onClear={t.clear} onSnapshot={g.snapshot} onAnalyze={g.analyze} canAnalyze={!!g.selectedId && !g.analyzing}
+            onFreeze={t.freeze} onResume={resume} onClear={t.clear} onSnapshot={g.snapshot} onAnalyze={g.analyze} canAnalyze={!!g.selectedId} analyzing={g.analyzing}
             muted={a.muted} onMute={a.toggleMute} onEnd={a.end} />
         </main>
         <aside style={{ width: 240 }} aria-label="Gallery">
-          <Gallery items={g.items} selectedId={g.selectedId} onSelect={g.select} busy={g.analyzing}>
+          <Gallery items={g.items} selectedId={g.selectedId} onSelect={g.select} openId={g.openId} onOpen={g.setOpenId} busy={g.analyzing}>
             {g.result && <SuggestionLayer result={g.result} onSend={(p) => g.sendPart(p, color)} />}
           </Gallery>
         </aside>

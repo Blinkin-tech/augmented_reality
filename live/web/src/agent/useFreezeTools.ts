@@ -45,16 +45,18 @@ export function useFreezeTools(
     }
   }, [replaceFrozen]);
 
-  /** Freezes the customer on the given JPEG bytes. Throws when nothing was sent. */
-  const freezeBytes = useCallback(async (bytes: Uint8Array, w: number, h: number) => {
+  /** Freezes the customer on the given JPEG bytes and returns the frozen state. Throws when nothing was sent. */
+  const freezeBytes = useCallback(async (bytes: Uint8Array, w: number, h: number): Promise<Frozen> => {
     const s = sender.current;
     if (!s || !s.isOpen()) throw new Error("customer not connected");
     const image = await createImageBitmap(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
     const id = s.freeze(bytes, w, h);
     if (id === undefined) { image.close(); throw new Error("not sent"); }
-    replaceFrozen({ image, w, h });
+    const f: Frozen = { image, w, h };
+    replaceFrozen(f);
     pending.current = id;
     uiRef.current.setStatus("sending frame");
+    return f;
   }, [sender, replaceFrozen]);
 
   const freeze = useCallback(async () => {
