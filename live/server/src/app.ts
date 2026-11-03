@@ -6,12 +6,15 @@ import type { SessionStore } from "./sessions";
 import { sessionsRouter } from "./routes/sessions";
 import { iceRouter } from "./routes/ice";
 import { snapshotsRouter } from "./routes/snapshots";
+import { analyzeRouter } from "./routes/analyze";
 import type { SnapshotStore } from "./snapshots";
+import type { VisionProvider } from "./vision/provider";
 
 export interface AppDeps {
   store: SessionStore;
   config: Config;
   snapshots: SnapshotStore;
+  vision: VisionProvider;
 }
 
 export function createApp(deps: AppDeps): express.Express {
@@ -22,6 +25,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(express.json());
   api.use("/sessions", sessionsRouter(deps));
   api.use("/sessions", snapshotsRouter(deps));
+  api.use("/sessions", analyzeRouter(deps));
   api.use("/ice", iceRouter(deps));
   app.use("/api", api);
 

@@ -4,6 +4,7 @@ import { loadConfig, type Config } from "./config";
 import { SessionStore } from "./sessions";
 import { SnapshotStore } from "./snapshots";
 import { attachSignaling } from "./signaling";
+import { selectProvider } from "./vision/provider";
 import { buildIceServers } from "./routes/ice";
 
 const SESSION_TTL_MS = 60 * 60 * 1000;
@@ -13,7 +14,7 @@ export async function startServer(
   config: Config,
 ): Promise<{ server: http.Server; store: SessionStore; close(): Promise<void> }> {
   const store = new SessionStore({ ttlMs: SESSION_TTL_MS });
-  const app = createApp({ store, config, snapshots: new SnapshotStore(config.dataDir) });
+  const app = createApp({ store, config, snapshots: new SnapshotStore(config.dataDir), vision: selectProvider(config) });
   const server = http.createServer(app);
   const wss = attachSignaling(server, { store, iceServers: buildIceServers(config) });
 
