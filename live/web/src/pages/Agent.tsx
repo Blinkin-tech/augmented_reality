@@ -4,6 +4,7 @@ import { SessionPanel } from "../components/SessionPanel";
 import { Toolbar, type Tool } from "../components/Toolbar";
 import { Gallery } from "../components/Gallery";
 import { SuggestionLayer } from "../components/SuggestionLayer";
+import { installDebugHook } from "../debugHook";
 import { useAgentSession } from "../agent/useAgentSession";
 
 export function Agent() {
@@ -15,6 +16,7 @@ export function Agent() {
   const g = a.gallery;
   const overlayTool = tool === "pen" ? "draw" : tool === "text" ? "pointer" : tool;
   const resume = t.resume;
+  useEffect(() => { installDebugHook({ status: () => a.status, gallery: () => g.items }); });
   useEffect(() => { if (!t.frozen) setTool((x) => (x === "pen" || x === "rect" || x === "text" ? "pointer" : x)); }, [t.frozen]);
 
   return (

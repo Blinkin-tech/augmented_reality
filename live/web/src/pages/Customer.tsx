@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { VideoOverlay } from "../components/VideoOverlay";
+import { installDebugHook } from "../debugHook";
 import { useCustomerSession } from "../customer/useCustomerSession";
 
 const CAMERA_TEXT = "Camera access was refused. Open this link over HTTPS, allow the camera in the browser settings, and try Chrome or Safari.";
@@ -10,6 +11,8 @@ export function Customer() {
   const { code = "" } = useParams();
   const s = useCustomerSession(code);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
+  const { state } = s;
+  useEffect(() => { installDebugHook({ state }); });
 
   if (s.phase === "loading") return <div className="center">Loading</div>;
   if (s.phase === "notfound") return <div className="center">Session not found</div>;
@@ -19,7 +22,7 @@ export function Customer() {
     return (
       <div className="center">
         <p>{CONSENT_TEXT}</p>
-        <button onClick={s.start}>Start camera</button>
+        <button data-testid="start-camera" onClick={s.start}>Start camera</button>
       </div>
     );
   }

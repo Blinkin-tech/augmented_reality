@@ -114,5 +114,5 @@ export function useCustomerSession(code: string) {
   };
 
   const shown = slow ? `${status} (relay may be needed)` : status;
-  return { phase, status: shown, stream, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
+  return { phase, status: shown, stream, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] }, state: () => rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
 }
