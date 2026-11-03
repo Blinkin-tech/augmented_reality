@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { VideoOverlay } from "../components/VideoOverlay";
 import { installDebugHook } from "../debugHook";
@@ -12,7 +12,10 @@ export function Customer() {
   const s = useCustomerSession(code);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const { state } = s;
+  const audio = useRef<HTMLAudioElement>(null);
   useEffect(() => { installDebugHook({ state }); });
+  // The agent's voice. The Start camera tap is the user gesture that lets it autoplay.
+  useEffect(() => { if (audio.current) audio.current.srcObject = s.remote ?? null; }, [s.remote, s.phase]);
 
   if (s.phase === "loading") return <div className="center">Loading</div>;
   if (s.phase === "notfound") return <div className="center">Session not found</div>;
@@ -28,6 +31,7 @@ export function Customer() {
   }
   return (
     <div className="fullscreen">
+      <audio ref={audio} autoPlay playsInline />
       <VideoOverlay stream={s.stream} frozen={s.view.frozen} shapes={s.view.shapes} transients={s.view.transients} frameSize={frame} onFrameSize={setFrame} muted />
       <div className="bar">
         <span role="status">{s.status}</span>

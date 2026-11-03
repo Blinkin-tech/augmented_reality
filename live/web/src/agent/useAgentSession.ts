@@ -113,7 +113,7 @@ export function useAgentSession() {
         if (m.type === "offer" && nextAction("offer", { hasPeer: !!peer.current }) === "connect") connect();
         peer.current?.handleSignal(m).catch(() => {});
       },
-      onEnded: () => setStatus("ended"),
+      onEnded: () => { stop.current(); setStream(undefined); dropSender(); setStatus("ended"); },
       onStatus: (st) => {
         if (st === "reconnecting") setStatus("reconnecting");
         else if (st === "lost") setStatus("connection lost");

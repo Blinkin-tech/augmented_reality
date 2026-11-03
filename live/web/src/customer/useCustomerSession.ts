@@ -20,6 +20,7 @@ export function useCustomerSession(code: string) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [status, setStatus] = useState("waiting for agent");
   const [stream, setStream] = useState<MediaStream>();
+  const [remote, setRemote] = useState<MediaStream>();
   const [muted, setMuted] = useState(false);
   const [, bump] = useState(0);
   const [slow, setSlow] = useState(false);
@@ -64,7 +65,7 @@ export function useCustomerSession(code: string) {
       conn.current = "new";
       const p = new Peer({
         role: "customer", iceServers: ice, signal: sig.current!,
-        onTrack: () => {},
+        onTrack: setRemote,
         onControl: (ch) => {
           rx.current = new ControlReceiver({ send: (m) => ch.readyState === "open" && ch.send(JSON.stringify(m)), onChange: () => bump((n) => n + 1) });
           ch.onmessage = (ev) => { void rx.current?.onMessage(ev.data); };
@@ -92,7 +93,7 @@ export function useCustomerSession(code: string) {
         setStatus("agent reconnecting");
       },
       onSignal: (m) => { peer.current?.handleSignal(m).catch(() => {}); },
-      onEnded: () => { setStatus("ended"); setPhase("ended"); },
+      onEnded: () => { stop.current(); setRemote(undefined); setStatus("ended"); setPhase("ended"); },
       onStatus: (s) => {
         if (s === "reconnecting") setStatus("reconnecting");
         else if (s === "lost") setStatus("connection lost");
@@ -114,5 +115,5 @@ export function useCustomerSession(code: string) {
   };
 
   const shown = slow ? `${status} (relay may be needed)` : status;
-  return { phase, status: shown, stream, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] }, state: () => rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
+  return { phase, status: shown, stream, remote, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] }, state: () => rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
 }
