@@ -5,6 +5,7 @@ import type { RTCIceServerLike } from "./routes/ice";
 import type { SessionStore } from "./sessions";
 
 const MAX_PAYLOAD_BYTES = 64 * 1024;
+export const HEARTBEAT_MS = 10_000;
 
 type Role = "agent" | "customer";
 
@@ -18,11 +19,26 @@ function send(ws: WebSocket | undefined, message: unknown): void {
 
 export function attachSignaling(
   server: http.Server,
-  deps: { store: SessionStore; iceServers: RTCIceServerLike[] },
+  deps: { store: SessionStore; iceServers: RTCIceServerLike[]; heartbeatMs?: number },
 ): WebSocketServer {
   const wss = new WebSocketServer({ server, path: "/ws", maxPayload: MAX_PAYLOAD_BYTES });
+  const alive = new WeakMap<WebSocket, boolean>();
+
+  // A phone that switches networks can leave its old socket open for minutes. Without a
+  // heartbeat that dead socket keeps the role slot and the reconnect gets 4409.
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (alive.get(ws) === false) { ws.terminate(); continue; }
+      alive.set(ws, false);
+      ws.ping();
+    }
+  }, deps.heartbeatMs ?? HEARTBEAT_MS);
+  heartbeat.unref();
+  wss.on("close", () => clearInterval(heartbeat));
 
   wss.on("connection", (ws, req) => {
+    alive.set(ws, true);
+    ws.on("pong", () => alive.set(ws, true));
     ws.on("error", () => ws.terminate());
     const url = new URL(req.url ?? "", "http://x");
     const role = url.searchParams.get("role");

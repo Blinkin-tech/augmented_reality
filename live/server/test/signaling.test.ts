@@ -60,3 +60,26 @@ describe("signaling", () => {
     const a2 = await open(code, "agent"); expect(await next(a2)).toMatchObject({ type: "joined", role: "agent" }); a2.close();
   });
 });
+
+describe("signaling heartbeat", () => {
+  let hb: Awaited<ReturnType<typeof startServer>>; let hbBase = "";
+  beforeAll(async () => { hb = await startServer(loadConfig({ PORT: "0" }), { heartbeatMs: 50 }); hbBase = `ws://127.0.0.1:${(hb.server.address() as { port: number }).port}`; });
+  afterAll(() => hb.close());
+  const openHb = (code: string, role: string, opts: WebSocket.ClientOptions = {}) =>
+    new Promise<WebSocket>((res) => { const ws = track(new WebSocket(`${hbBase}/ws?code=${code}&role=${role}`, opts)); ws.once("open", () => res(ws)); });
+
+  it("terminates a socket that never answers pings and frees its slot", async () => {
+    const code = (await (await fetch(hbBase.replace("ws", "http") + "/api/sessions", { method: "POST" })).json()).code as string;
+    const healthy = await openHb(code, "customer"); await next(healthy);
+    const dead = await openHb(code, "agent", { autoPong: false });
+    expect(await next(dead)).toMatchObject({ type: "joined", role: "agent" });
+    expect(await next(healthy)).toEqual({ type: "peer-joined" });
+    const [codeClosed] = await closed(dead);
+    expect(codeClosed).toBe(1006);
+    expect(await next(healthy)).toEqual({ type: "peer-left" });
+    const again = await openHb(code, "agent");
+    expect(await next(again)).toMatchObject({ type: "joined", role: "agent", peerPresent: true });
+    expect(healthy.readyState).toBe(WebSocket.OPEN);
+    again.close(); healthy.close();
+  });
+});

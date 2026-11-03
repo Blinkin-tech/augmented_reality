@@ -24,6 +24,7 @@ export function useCustomerSession(code: string) {
   const [muted, setMuted] = useState(false);
   const [, bump] = useState(0);
   const [slow, setSlow] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
   const rx = useRef<ControlReceiver>();
   const sig = useRef<SignalClient>();
   const peer = useRef<Peer>();
@@ -94,8 +95,10 @@ export function useCustomerSession(code: string) {
       },
       onSignal: (m) => { peer.current?.handleSignal(m).catch(() => {}); },
       onEnded: () => { stop.current(); setRemote(undefined); setStatus("ended"); setPhase("ended"); },
+      onClosed: (_code, reason) => setCloseReason(reason),
       onStatus: (s) => {
-        if (s === "reconnecting") setStatus("reconnecting");
+        if (s === "open") setCloseReason("");
+        else if (s === "reconnecting") setStatus("reconnecting");
         else if (s === "lost") setStatus("connection lost");
       },
     });
@@ -114,6 +117,7 @@ export function useCustomerSession(code: string) {
     setPhase("ended");
   };
 
-  const shown = slow ? `${status} (relay may be needed)` : status;
+  const base = closeReason ? `${status} (${closeReason})` : status;
+  const shown = slow ? `${base} (relay may be needed)` : base;
   return { phase, status: shown, stream, remote, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] }, state: () => rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
 }

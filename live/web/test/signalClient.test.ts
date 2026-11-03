@@ -5,7 +5,7 @@ class FakeWS { static instances: FakeWS[] = []; onopen?: () => void; onclose?: (
   constructor(public url: string) { FakeWS.instances.push(this); } send(d: string) { this.sent.push(d); } close() {} }
 
 describe("SignalClient", () => {
-  it("dispatches joined and signals, reconnects on drop, stops on 4409", () => {
+  it("dispatches joined and signals, reconnects on drop, stops on 4404", () => {
     const h = { onJoined: vi.fn(), onPeerJoined: vi.fn(), onPeerLeft: vi.fn(), onSignal: vi.fn(), onEnded: vi.fn(), onStatus: vi.fn() };
     const timeouts: Array<[() => void, number]> = [];
     const c = new SignalClient("ws://x/ws?code=A&role=agent", h, { WebSocketImpl: FakeWS as any, now: () => 0, setTimeoutImpl: ((fn: () => void, ms: number) => { timeouts.push([fn, ms]); return 0; }) as any });
@@ -14,7 +14,7 @@ describe("SignalClient", () => {
     ws.onmessage!({ data: JSON.stringify({ type: "offer", sdp: "o" }) }); expect(h.onSignal).toHaveBeenCalledWith({ type: "offer", sdp: "o" });
     ws.onclose!({ code: 1006, reason: "" }); expect(h.onStatus).toHaveBeenCalledWith("reconnecting"); expect(timeouts[0][1]).toBe(1000);
     timeouts[0][0](); expect(FakeWS.instances).toHaveLength(2);
-    FakeWS.instances[1].onclose!({ code: 4409, reason: "role taken" }); expect(h.onStatus).toHaveBeenLastCalledWith("lost"); expect(timeouts).toHaveLength(1);
+    FakeWS.instances[1].onclose!({ code: 4404, reason: "unknown session" }); expect(h.onStatus).toHaveBeenLastCalledWith("lost"); expect(timeouts).toHaveLength(1);
     c.close();
   });
 
@@ -54,6 +54,35 @@ describe("SignalClient", () => {
     expect(FakeWS.instances).toHaveLength(2);
     first.onclose!({ code: 1006, reason: "" });
     expect(timeouts).toHaveLength(1);
+    c.close();
+  });
+
+  it("retries 4409 inside the backoff window and reports the reason", () => {
+    let t = 1000;
+    FakeWS.instances.length = 0;
+    const onClosed = vi.fn();
+    const h: any = { onJoined: vi.fn(), onPeerJoined: vi.fn(), onPeerLeft: vi.fn(), onSignal: vi.fn(), onEnded: vi.fn(), onStatus: vi.fn(), onClosed };
+    const timeouts: Array<[() => void, number]> = [];
+    const c = new SignalClient("ws://x", h, { WebSocketImpl: FakeWS as any, now: () => t, setTimeoutImpl: ((fn: () => void, ms: number) => { timeouts.push([fn, ms]); return 0; }) as any });
+    FakeWS.instances[0].onclose!({ code: 4409, reason: "role taken" });
+    expect(onClosed).toHaveBeenCalledWith(4409, "role taken");
+    expect(h.onStatus).toHaveBeenLastCalledWith("reconnecting");
+    expect(timeouts).toHaveLength(1);
+    timeouts[0][0](); expect(FakeWS.instances).toHaveLength(2);
+    t = 61000;
+    FakeWS.instances[1].onclose!({ code: 4409, reason: "role taken" });
+    expect(h.onStatus).toHaveBeenLastCalledWith("lost");
+    expect(timeouts).toHaveLength(1);
+    c.close();
+  });
+
+  it("reports the 4404 reason and does not retry", () => {
+    const onClosed = vi.fn();
+    const { h, c, timeouts } = setup({ onClosed });
+    FakeWS.instances[0].onclose!({ code: 4404, reason: "unknown session" });
+    expect(onClosed).toHaveBeenCalledWith(4404, "unknown session");
+    expect(h.onStatus).toHaveBeenLastCalledWith("lost");
+    expect(timeouts).toHaveLength(0);
     c.close();
   });
 });

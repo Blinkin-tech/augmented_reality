@@ -12,11 +12,12 @@ const EXPIRE_INTERVAL_MS = 60 * 1000;
 
 export async function startServer(
   config: Config,
+  opts: { heartbeatMs?: number } = {},
 ): Promise<{ server: http.Server; store: SessionStore; close(): Promise<void> }> {
   const store = new SessionStore({ ttlMs: SESSION_TTL_MS });
   const app = createApp({ store, config, snapshots: new SnapshotStore(config.dataDir), vision: selectProvider(config) });
   const server = http.createServer(app);
-  const wss = attachSignaling(server, { store, iceServers: buildIceServers(config) });
+  const wss = attachSignaling(server, { store, iceServers: buildIceServers(config), heartbeatMs: opts.heartbeatMs });
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);

@@ -21,4 +21,8 @@ describe("agent shownStatus", () => {
     expect(shownStatus("customer reconnecting", false)).toBe("customer reconnecting");
     expect(shownStatus("sending frame", true)).toBe("sending frame");
   });
+  it("appends the server close reason", () => {
+    expect(shownStatus("reconnecting", false, "role taken")).toBe("reconnecting (role taken)");
+    expect(shownStatus("connection lost", false, "unknown session")).toBe("connection lost (unknown session)");
+  });
 });

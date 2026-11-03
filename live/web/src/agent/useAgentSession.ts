@@ -20,8 +20,9 @@ export function nextAction(event: AgentEvent, _state: { hasPeer: boolean }): "co
 }
 
 /** "live" needs both a connected peer and an open guidance channel; until then it reads "connecting". */
-export function shownStatus(status: string, channelOpen: boolean): string {
-  return status === "live" && !channelOpen ? "connecting" : status;
+export function shownStatus(status: string, channelOpen: boolean, closeReason = ""): string {
+  const s = status === "live" && !channelOpen ? "connecting" : status;
+  return closeReason ? `${s} (${closeReason})` : s;
 }
 
 export function useAgentSession() {
@@ -31,6 +32,7 @@ export function useAgentSession() {
   const [muted, setMuted] = useState(false);
   const [note, setNote] = useState("");
   const [channelOpen, setChannelOpen] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
   const [, bump] = useState(0);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const sig = useRef<SignalClient>();
@@ -73,6 +75,7 @@ export function useAgentSession() {
     setMuted(false);
     dropSender();
     setNote("");
+    setCloseReason("");
     setStatus("no session");
     let micNote = "";
     let audio: MediaStream | undefined;
@@ -124,8 +127,10 @@ export function useAgentSession() {
         peer.current?.handleSignal(m).catch(() => {});
       },
       onEnded: () => { stop.current(); setStream(undefined); dropSender(); setStatus("ended"); },
+      onClosed: (_code, reason) => setCloseReason(reason),
       onStatus: (st) => {
-        if (st === "reconnecting") setStatus("reconnecting");
+        if (st === "open") setCloseReason("");
+        else if (st === "reconnecting") setStatus("reconnecting");
         else if (st === "lost") setStatus("connection lost");
       },
       onError: (msg) => setNote(msg),
@@ -151,7 +156,7 @@ export function useAgentSession() {
   };
 
   return {
-    session, status: shownStatus(status, channelOpen), stream, muted, newSession, toggleMute, end,
+    session, status: shownStatus(status, channelOpen, closeReason), stream, muted, newSession, toggleMute, end,
     note, channelOpen, pointer, arrow, tools, gallery,
     view: sender.current?.local() ?? { shapes: [], transients: [] },
   };

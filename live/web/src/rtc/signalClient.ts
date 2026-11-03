@@ -11,6 +11,8 @@ export interface SignalHandlers {
   onEnded(): void;
   onStatus(s: SignalStatus): void;
   onError?(message: string): void;
+  /** Called when the server closes the socket with an application code (4xxx), before the status update. */
+  onClosed?(code: number, reason: string): void;
 }
 
 export interface SignalOptions {
@@ -67,7 +69,10 @@ export class SignalClient {
     ws.onclose = (e: CloseEvent) => {
       if (ws !== this.ws || this.closed) return;
       if (e.code === 4000) { this.h.onEnded(); return; }
-      if (e.code === 4404 || e.code === 4409) { this.h.onStatus("lost"); return; }
+      if (e.code >= 4000 && e.code < 5000) this.h.onClosed?.(e.code, e.reason);
+      if (e.code === 4404) { this.h.onStatus("lost"); return; }
+      // 4409 "role taken" usually means our previous socket is not dead yet on the server;
+      // the server heartbeat frees the slot, so retry inside the normal backoff window.
       if (!this.downSince) this.downSince = this.now();
       if (giveUp(this.now() - this.downSince)) { this.h.onStatus("lost"); return; }
       this.h.onStatus("reconnecting");
