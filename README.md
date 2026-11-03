@@ -1,3 +1,7 @@
+## Live visual support (2026)
+
+A live visual support demo streams a phone camera to an agent console over WebRTC. See [live/README.md](live/README.md) to run it and test it.
+
 # Marker-less Augmented Reality
 
 In this project readers will learn how to create a standard real-time project using OpenCV (for desktop), and how to perform a new method of marker-less augmented reality, using the actual environment as the input instead of printed square markers. It covers some of the theory of marker-less AR and show how to apply it in useful projects.
