@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SignalClient } from "../rtc/signalClient";
 import { Peer } from "../rtc/peer";
 import { ControlSender, POINTER_MS, ARROW_MS } from "./controlSender";
+import { useFreezeTools } from "./useFreezeTools";
 
 export type AgentSession = { code: string; customerUrl: string };
 export type AgentEvent = "peer-joined" | "peer-left" | "offer" | "joined";
@@ -28,6 +29,11 @@ export function useAgentSession() {
   const sender = useRef<ControlSender>();
   const local = useRef<MediaStream>();
   const stop = useRef<() => void>(() => {});
+  const ackRef = useRef<(a: { frameId: string; ok: boolean }) => void>(() => {});
+  const tools = useFreezeTools(sender, {
+    bump: () => bump((n) => n + 1), setStatus, setNote,
+  });
+  ackRef.current = tools.onAck;
 
   useEffect(() => () => {
     stop.current();
@@ -76,7 +82,7 @@ export function useAgentSession() {
         role: "agent", iceServers: ice, signal: sig.current!,
         onTrack: setStream,
         onControl: (ch) => {
-          const cs = new ControlSender(ch);
+          const cs = new ControlSender(ch, { onAck: (a) => ackRef.current(a) });
           sender.current = cs;
           setChannelOpen(true);
           ch.onmessage = (ev) => { if (typeof ev.data === "string") { cs.onMessage(ev.data); bump((n) => n + 1); } };
@@ -132,7 +138,7 @@ export function useAgentSession() {
 
   return {
     session, status, stream, muted, newSession, toggleMute, end,
-    note, channelOpen, pointer, arrow,
+    note, channelOpen, pointer, arrow, tools,
     view: sender.current?.local() ?? { shapes: [], transients: [] },
   };
 }

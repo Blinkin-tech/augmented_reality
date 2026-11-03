@@ -11,7 +11,9 @@ export function Agent() {
   const [tool, setTool] = useState<Tool>("pointer");
   const [color, setColor] = useState("#ffcc00");
   const [frame, setFrame] = useState({ w: 0, h: 0 });
-  const overlayTool = tool === "pen" ? "draw" : tool;
+  const t = a.tools;
+  const overlayTool = tool === "pen" ? "draw" : tool === "text" ? "pointer" : tool;
+  const resume = () => { t.resume(); setTool("pointer"); };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -22,11 +24,21 @@ export function Agent() {
           <div data-testid="video-overlay" style={{ flex: 1, minHeight: 0, position: "relative" }}>
             <VideoOverlay stream={a.stream} shapes={a.view.shapes} transients={a.view.transients} tool={overlayTool}
               frameSize={frame} onFrameSize={setFrame} muted={false}
-              onPointer={a.pointer}
-              onDrag={(f, t) => a.arrow(f, t, color)} />
+              frozen={t.frozen} onVideoEl={t.setVideoEl}
+              onPointer={tool === "text" ? t.openText : a.pointer}
+              onDrag={(f, to) => a.arrow(f, to, color)}
+              onDraw={(pts) => (tool === "rect" ? t.rect(pts, color) : t.pen(pts, color))} />
+            {t.textPrompt && (
+              <input autoFocus aria-label="Text" data-testid="text-input"
+                style={{ position: "absolute", left: `${t.textPrompt.x * 100}%`, top: `${t.textPrompt.y * 100}%`, zIndex: 2 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") t.submitText(e.currentTarget.value, color);
+                  else if (e.key === "Escape") t.cancelText();
+                }} />
+            )}
           </div>
-          <Toolbar tool={tool} onTool={setTool} color={color} onColor={setColor} frozen={false}
-            onFreeze={noop} onResume={noop} onClear={noop} onSnapshot={noop} onAnalyze={noop}
+          <Toolbar tool={tool} onTool={setTool} color={color} onColor={setColor} frozen={!!t.frozen}
+            onFreeze={t.freeze} onResume={resume} onClear={t.clear} onSnapshot={noop} onAnalyze={noop}
             muted={a.muted} onMute={a.toggleMute} onEnd={a.end} />
         </main>
         <aside style={{ width: 240 }} aria-label="Gallery" />

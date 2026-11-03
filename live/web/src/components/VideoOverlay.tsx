@@ -15,6 +15,7 @@ export interface VideoOverlayProps {
   frameSize: { w: number; h: number };
   muted?: boolean;
   onFrameSize?(size: { w: number; h: number }): void;
+  onVideoEl?(el: HTMLVideoElement | null): void;
 }
 
 const fill: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%" };
@@ -30,7 +31,7 @@ function sizeCanvas(c: HTMLCanvasElement, w: number, h: number) {
 
 export function VideoOverlay(p: VideoOverlayProps) {
   const box = useRef<HTMLDivElement>(null);
-  const video = useRef<HTMLVideoElement>(null);
+  const video = useRef<HTMLVideoElement | null>(null);
   const still = useRef<HTMLCanvasElement>(null);
   const over = useRef<HTMLCanvasElement>(null);
   const frame = p.frozen ? { w: p.frozen.w, h: p.frozen.h } : p.frameSize;
@@ -65,7 +66,7 @@ export function VideoOverlay(p: VideoOverlayProps) {
 
   return (
     <div ref={box} style={{ position: "relative", width: "100%", height: "100%", background: "#000" }}>
-      <video ref={video} autoPlay playsInline muted={p.muted ?? true} style={{ ...fill, objectFit: "contain", visibility: p.frozen ? "hidden" : "visible" }}
+      <video ref={(el) => { video.current = el; p.onVideoEl?.(el); }} autoPlay playsInline muted={p.muted ?? true} style={{ ...fill, objectFit: "contain", visibility: p.frozen ? "hidden" : "visible" }}
         onLoadedMetadata={(e) => {
           const v = e.currentTarget;
           p.onFrameSize?.({ w: v.videoWidth, h: v.videoHeight });

@@ -21,8 +21,11 @@ export class ControlSender {
   private now: () => number;
   private seq = 0;
 
-  constructor(private ch: ControlChannel, opts: { now?: () => number } = {}) {
+  private onAck?: (ack: { frameId: string; ok: boolean }) => void;
+
+  constructor(private ch: ControlChannel, opts: { now?: () => number; onAck?: (ack: { frameId: string; ok: boolean }) => void } = {}) {
     this.now = opts.now ?? Date.now;
+    this.onAck = opts.onAck;
   }
 
   private get open(): boolean { return this.ch.readyState === undefined || this.ch.readyState === "open"; }
@@ -63,7 +66,7 @@ export class ControlSender {
 
   onMessage(raw: string): void {
     const m = decode(raw);
-    if (m?.t === "ack") this.lastAck = { frameId: m.frameId, ok: m.ok };
+    if (m?.t === "ack") { this.lastAck = { frameId: m.frameId, ok: m.ok }; this.onAck?.(this.lastAck); }
     else if (m?.t === "resumed") { this.resumedAt = this.now(); this.shapes = []; }
   }
 
