@@ -6,6 +6,15 @@ import { ControlReceiver } from "./controlReceiver";
 export type Phase = "loading" | "notfound" | "ended" | "consent" | "denied" | "active";
 const TURN_HINT_MS = 20000;
 
+export type SessionEvent = "joined-peer" | "joined-alone" | "peer-joined" | "peer-left" | "ws-open";
+
+/** Decides what to do with the Peer for a signaling event. A connected flag never blocks a rebuild. */
+export function nextAction(event: SessionEvent, _state: { connected: boolean }): "connect" | "disconnect" | "none" {
+  if (event === "joined-peer" || event === "peer-joined") return "connect";
+  if (event === "peer-left") return "disconnect";
+  return "none";
+}
+
 export function useCustomerSession(code: string) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [status, setStatus] = useState("waiting for agent");
@@ -67,19 +76,25 @@ export function useCustomerSession(code: string) {
         },
       });
       peer.current = p;
-      void p.start(media);
+      p.start(media).catch(() => setStatus("connection lost"));
     };
-    let wasOpen = false;
     sig.current = new SignalClient(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=customer&code=${code}`, {
-      onJoined: (m) => { ice = m.iceServers ?? []; if (m.peerPresent) { setStatus("connecting"); connect(); } },
-      onPeerJoined: () => { if (conn.current !== "connected") { setStatus("connecting"); connect(); } },
-      onPeerLeft: () => setStatus("agent reconnecting"),
-      onSignal: (m) => { void peer.current?.handleSignal(m); },
+      onJoined: (m) => {
+        ice = m.iceServers ?? [];
+        if (nextAction(m.peerPresent ? "joined-peer" : "joined-alone", { connected: conn.current === "connected" }) === "connect") { setStatus("connecting"); connect(); }
+      },
+      onPeerJoined: () => {
+        if (nextAction("peer-joined", { connected: conn.current === "connected" }) === "connect") { setStatus("connecting"); connect(); }
+      },
+      onPeerLeft: () => {
+        if (nextAction("peer-left", { connected: conn.current === "connected" }) === "disconnect") { peer.current?.close(); peer.current = undefined; conn.current = "new"; }
+        setStatus("agent reconnecting");
+      },
+      onSignal: (m) => { peer.current?.handleSignal(m).catch(() => {}); },
       onEnded: () => { setStatus("ended"); setPhase("ended"); },
       onStatus: (s) => {
         if (s === "reconnecting") setStatus("reconnecting");
         else if (s === "lost") setStatus("connection lost");
-        else if (s === "open") { if (wasOpen) { setStatus("connecting"); connect(); } wasOpen = true; }
       },
     });
     stop.current = () => { sig.current?.close(); peer.current?.close(); media.getTracks().forEach((t) => t.stop()); };
