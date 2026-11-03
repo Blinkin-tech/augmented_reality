@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VideoOverlay } from "../components/VideoOverlay";
 import { SessionPanel } from "../components/SessionPanel";
 import { Toolbar, type Tool } from "../components/Toolbar";
@@ -13,7 +13,8 @@ export function Agent() {
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const t = a.tools;
   const overlayTool = tool === "pen" ? "draw" : tool === "text" ? "pointer" : tool;
-  const resume = () => { t.resume(); setTool("pointer"); };
+  const resume = t.resume;
+  useEffect(() => { if (!t.frozen) setTool((x) => (x === "pen" || x === "rect" || x === "text" ? "pointer" : x)); }, [t.frozen]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>

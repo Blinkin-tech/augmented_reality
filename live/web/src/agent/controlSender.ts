@@ -28,6 +28,8 @@ export class ControlSender {
     this.onAck = opts.onAck;
   }
 
+  isOpen(): boolean { return this.open; }
+
   private get open(): boolean { return this.ch.readyState === undefined || this.ch.readyState === "open"; }
 
   private send(m: ControlMessage): void { if (this.open) this.ch.send(encode(m)); }
@@ -52,11 +54,11 @@ export class ControlSender {
     this.shapes = [];
   }
 
-  resume(): void { this.send({ t: "resume" }); }
+  resume(): void { this.send({ t: "resume" }); this.shapes = []; }
 
-  freeze(jpeg: Uint8Array, w: number, h: number): string {
+  freeze(jpeg: Uint8Array, w: number, h: number): string | undefined {
     const frameId = `f${this.now()}-${++this.seq}`;
-    if (!this.open) return frameId;
+    if (!this.open) return undefined;
     const chunks = splitFrame(jpeg);
     this.send({ t: "freeze-start", frameId, bytes: jpeg.length, chunks: chunks.length, w, h });
     for (const c of chunks) this.ch.send(c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength) as ArrayBuffer);

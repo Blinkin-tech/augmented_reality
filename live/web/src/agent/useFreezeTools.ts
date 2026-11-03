@@ -1,10 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Shape } from "../protocol/messages";
 import type { ControlSender } from "./controlSender";
 import { captureJpeg } from "./captureFrame";
 
 export interface Frozen { image: ImageBitmap; w: number; h: number }
 type Pt = [number, number];
+
+function releaseFrozen(prev: Frozen | null): void {
+  (prev?.image as { close?: () => void } | undefined)?.close?.();
+}
 
 /** Freeze frame, drawing shapes, clear and resume for the agent console. */
 export function useFreezeTools(
@@ -15,8 +19,18 @@ export function useFreezeTools(
   const [textPrompt, setTextPrompt] = useState<{ x: number; y: number } | null>(null);
   const videoEl = useRef<HTMLVideoElement | null>(null);
   const pending = useRef<string>();
+  const frozenRef = useRef<Frozen | null>(null);
+  const busy = useRef(false);
   const uiRef = useRef(ui);
   uiRef.current = ui;
+
+  const replaceFrozen = useCallback((next: Frozen | null) => {
+    releaseFrozen(frozenRef.current);
+    frozenRef.current = next;
+    setFrozen(next);
+  }, []);
+
+  useEffect(() => () => { releaseFrozen(frozenRef.current); frozenRef.current = null; }, []);
 
   const setVideoEl = useCallback((el: HTMLVideoElement | null) => { videoEl.current = el; }, []);
 
@@ -25,35 +39,46 @@ export function useFreezeTools(
     pending.current = undefined;
     if (ack.ok) uiRef.current.setStatus("live");
     else {
-      setFrozen(null);
+      replaceFrozen(null);
       uiRef.current.setNote("freeze failed, try again");
       uiRef.current.setStatus("live");
     }
-  }, []);
+  }, [replaceFrozen]);
 
   const freeze = useCallback(async () => {
     const v = videoEl.current;
     const s = sender.current;
-    if (!v || !s) return;
+    if (busy.current) return;
+    if (!v || !s || !s.isOpen()) { uiRef.current.setNote("customer not connected"); return; }
+    busy.current = true;
     try {
       const { bytes, w, h } = await captureJpeg(v);
       const image = await createImageBitmap(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
-      setFrozen({ image, w, h });
+      const id = s.freeze(bytes, w, h);
+      if (id === undefined) { image.close(); throw new Error("not sent"); }
+      replaceFrozen({ image, w, h });
+      pending.current = id;
       uiRef.current.setStatus("sending frame");
-      pending.current = s.freeze(bytes, w, h);
     } catch {
       uiRef.current.setNote("freeze failed, try again");
+    } finally {
+      busy.current = false;
     }
-  }, [sender]);
+  }, [sender, replaceFrozen]);
+
+  /** Drops frozen state, e.g. when the customer's channel goes away. */
+  const reset = useCallback(() => {
+    pending.current = undefined;
+    replaceFrozen(null);
+    setTextPrompt(null);
+  }, [replaceFrozen]);
 
   const resume = useCallback(() => {
     sender.current?.resume();
-    pending.current = undefined;
-    setFrozen(null);
-    setTextPrompt(null);
+    reset();
     uiRef.current.setStatus("live");
     uiRef.current.bump();
-  }, [sender]);
+  }, [sender, reset]);
 
   const clear = useCallback(() => { sender.current?.clear(); uiRef.current.bump(); }, [sender]);
 
@@ -72,5 +97,5 @@ export function useFreezeTools(
   }, [textPrompt, addShape]);
   const cancelText = useCallback(() => setTextPrompt(null), []);
 
-  return { frozen, textPrompt, setVideoEl, onAck, freeze, resume, clear, pen, rect, openText, submitText, cancelText };
+  return { frozen, textPrompt, reset, setVideoEl, onAck, freeze, resume, clear, pen, rect, openText, submitText, cancelText };
 }

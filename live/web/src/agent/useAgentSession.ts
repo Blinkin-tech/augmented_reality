@@ -41,7 +41,7 @@ export function useAgentSession() {
     timers.current.clear();
   }, []);
 
-  const dropSender = () => { sender.current = undefined; setChannelOpen(false); bump((n) => n + 1); };
+  const dropSender = () => { sender.current = undefined; tools.reset(); setChannelOpen(false); bump((n) => n + 1); };
 
   const expireAt = (ms: number) => {
     const t = setTimeout(() => { timers.current.delete(t); bump((n) => n + 1); }, ms + 20);

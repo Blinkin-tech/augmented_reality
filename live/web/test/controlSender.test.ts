@@ -22,4 +22,16 @@ describe("ControlSender", () => {
     s.pointer(0.5, 0.5); s.clear(); s.freeze(new Uint8Array(10), 1, 1);
     expect(sent).toEqual([]);
   });
+  it("empties local shapes on resume without waiting for resumed", () => {
+    const s = new ControlSender({ send: () => {}, bufferedAmount: 0 });
+    s.shape({ t: "shape", id: "a", kind: "rect", points: [[0, 0], [1, 1]], color: "#fff" });
+    expect(s.local().shapes).toHaveLength(1);
+    s.resume();
+    expect(s.local().shapes).toEqual([]);
+  });
+  it("returns undefined from freeze on a closed channel", () => {
+    const s = new ControlSender({ send: () => {}, bufferedAmount: 0, readyState: "closed" });
+    expect(s.freeze(new Uint8Array(10), 1, 1)).toBeUndefined();
+    expect(s.isOpen()).toBe(false);
+  });
 });
