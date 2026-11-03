@@ -14,10 +14,10 @@ function releaseFrozen(prev: Frozen | null): void {
 export function useFreezeTools(
   sender: { current: ControlSender | undefined },
   ui: { bump(): void; setStatus(s: string): void; setNote(s: string): void },
+  videoEl: { current: HTMLVideoElement | null },
 ) {
   const [frozen, setFrozen] = useState<Frozen | null>(null);
   const [textPrompt, setTextPrompt] = useState<{ x: number; y: number } | null>(null);
-  const videoEl = useRef<HTMLVideoElement | null>(null);
   const pending = useRef<string>();
   const frozenRef = useRef<Frozen | null>(null);
   const busy = useRef(false);
@@ -32,7 +32,7 @@ export function useFreezeTools(
 
   useEffect(() => () => { releaseFrozen(frozenRef.current); frozenRef.current = null; }, []);
 
-  const setVideoEl = useCallback((el: HTMLVideoElement | null) => { videoEl.current = el; }, []);
+  const setVideoEl = useCallback((el: HTMLVideoElement | null) => { videoEl.current = el; }, [videoEl]);
 
   const onAck = useCallback((ack: { frameId: string; ok: boolean }) => {
     if (ack.frameId !== pending.current) return;
@@ -45,6 +45,18 @@ export function useFreezeTools(
     }
   }, [replaceFrozen]);
 
+  /** Freezes the customer on the given JPEG bytes. Throws when nothing was sent. */
+  const freezeBytes = useCallback(async (bytes: Uint8Array, w: number, h: number) => {
+    const s = sender.current;
+    if (!s || !s.isOpen()) throw new Error("customer not connected");
+    const image = await createImageBitmap(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
+    const id = s.freeze(bytes, w, h);
+    if (id === undefined) { image.close(); throw new Error("not sent"); }
+    replaceFrozen({ image, w, h });
+    pending.current = id;
+    uiRef.current.setStatus("sending frame");
+  }, [sender, replaceFrozen]);
+
   const freeze = useCallback(async () => {
     const v = videoEl.current;
     const s = sender.current;
@@ -53,18 +65,13 @@ export function useFreezeTools(
     busy.current = true;
     try {
       const { bytes, w, h } = await captureJpeg(v);
-      const image = await createImageBitmap(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
-      const id = s.freeze(bytes, w, h);
-      if (id === undefined) { image.close(); throw new Error("not sent"); }
-      replaceFrozen({ image, w, h });
-      pending.current = id;
-      uiRef.current.setStatus("sending frame");
+      await freezeBytes(bytes, w, h);
     } catch {
       uiRef.current.setNote("freeze failed, try again");
     } finally {
       busy.current = false;
     }
-  }, [sender, replaceFrozen]);
+  }, [sender, videoEl, freezeBytes]);
 
   /** Drops frozen state, e.g. when the customer's channel goes away. */
   const reset = useCallback(() => {
@@ -91,11 +98,12 @@ export function useFreezeTools(
   const pen = useCallback((pts: Pt[], color: string) => addShape("path", pts, color), [addShape]);
   const rect = useCallback((pts: Pt[], color: string) => addShape("rect", pts.slice(0, 2), color), [addShape]);
   const openText = useCallback((x: number, y: number) => setTextPrompt({ x, y }), []);
-  const submitText = useCallback((text: string, color: string) => {
-    if (textPrompt && text.trim()) addShape("text", [[textPrompt.x, textPrompt.y]], color, text);
+  const text = useCallback((pt: Pt, label: string, color: string) => addShape("text", [pt], color, label), [addShape]);
+  const submitText = useCallback((label: string, color: string) => {
+    if (textPrompt && label.trim()) text([textPrompt.x, textPrompt.y], label, color);
     setTextPrompt(null);
-  }, [textPrompt, addShape]);
+  }, [textPrompt, text]);
   const cancelText = useCallback(() => setTextPrompt(null), []);
 
-  return { frozen, textPrompt, reset, setVideoEl, onAck, freeze, resume, clear, pen, rect, openText, submitText, cancelText };
+  return { frozen, textPrompt, reset, setVideoEl, onAck, freeze, freezeBytes, resume, clear, pen, rect, text, openText, submitText, cancelText };
 }

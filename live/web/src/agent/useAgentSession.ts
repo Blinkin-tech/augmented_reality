@@ -3,6 +3,8 @@ import { SignalClient } from "../rtc/signalClient";
 import { Peer } from "../rtc/peer";
 import { ControlSender, POINTER_MS, ARROW_MS } from "./controlSender";
 import { useFreezeTools } from "./useFreezeTools";
+import { useGallery } from "./useGallery";
+import { createSession, endSession } from "../api";
 
 export type AgentSession = { code: string; customerUrl: string };
 export type AgentEvent = "peer-joined" | "peer-left" | "offer" | "joined";
@@ -30,9 +32,11 @@ export function useAgentSession() {
   const local = useRef<MediaStream>();
   const stop = useRef<() => void>(() => {});
   const ackRef = useRef<(a: { frameId: string; ok: boolean }) => void>(() => {});
+  const videoEl = useRef<HTMLVideoElement | null>(null);
   const tools = useFreezeTools(sender, {
     bump: () => bump((n) => n + 1), setStatus, setNote,
-  });
+  }, videoEl);
+  const gallery = useGallery(session?.code, videoEl, tools, setNote);
   ackRef.current = tools.onAck;
 
   useEffect(() => () => {
@@ -67,9 +71,9 @@ export function useAgentSession() {
     let audio: MediaStream | undefined;
     try { audio = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { micNote = "microphone unavailable"; }
     local.current = audio;
-    const r = await fetch("/api/sessions", { method: "POST" }).catch(() => undefined);
-    if (!r || !r.ok) { audio?.getTracks().forEach((t) => t.stop()); return setStatus("connection lost"); }
-    const s: AgentSession = await r.json();
+    const s: AgentSession | undefined = await createSession().catch(() => undefined);
+    if (!s) { audio?.getTracks().forEach((t) => t.stop()); return setStatus("connection lost"); }
+    gallery.reset();
     setSession(s);
     setNote(micNote);
     setStatus("waiting for customer");
@@ -130,7 +134,7 @@ export function useAgentSession() {
   };
 
   const end = async () => {
-    if (session) await fetch(`/api/sessions/${session.code}/end`, { method: "POST" }).catch(() => {});
+    if (session) await endSession(session.code).catch(() => {});
     stop.current();
     setStream(undefined);
     setStatus("ended");
@@ -138,7 +142,7 @@ export function useAgentSession() {
 
   return {
     session, status, stream, muted, newSession, toggleMute, end,
-    note, channelOpen, pointer, arrow, tools,
+    note, channelOpen, pointer, arrow, tools, gallery,
     view: sender.current?.local() ?? { shapes: [], transients: [] },
   };
 }

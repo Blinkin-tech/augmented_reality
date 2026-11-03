@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SignalClient } from "../rtc/signalClient";
 import { Peer } from "../rtc/peer";
+import { getSession, endSession } from "../api";
 import { ControlReceiver } from "./controlReceiver";
 
 export type Phase = "loading" | "notfound" | "ended" | "consent" | "denied" | "active";
@@ -30,10 +31,10 @@ export function useCustomerSession(code: string) {
 
   useEffect(() => {
     let live = true;
-    fetch(`/api/sessions/${code}`).then(async (r) => {
+    getSession(code).then((r) => {
       if (!live) return;
-      if (!r.ok) return setPhase("notfound");
-      setPhase((await r.json()).state === "ended" ? "ended" : "consent");
+      if (!r) return setPhase("notfound");
+      setPhase(r.state === "ended" ? "ended" : "consent");
     }).catch(() => live && setPhase("notfound"));
     return () => { live = false; stop.current(); };
   }, [code]);
@@ -107,7 +108,7 @@ export function useCustomerSession(code: string) {
   };
 
   const end = async () => {
-    await fetch(`/api/sessions/${code}/end`, { method: "POST" }).catch(() => {});
+    await endSession(code).catch(() => {});
     stop.current();
     setPhase("ended");
   };

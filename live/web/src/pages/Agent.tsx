@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { VideoOverlay } from "../components/VideoOverlay";
 import { SessionPanel } from "../components/SessionPanel";
 import { Toolbar, type Tool } from "../components/Toolbar";
+import { Gallery } from "../components/Gallery";
+import { SuggestionLayer } from "../components/SuggestionLayer";
 import { useAgentSession } from "../agent/useAgentSession";
-
-const noop = () => {};
 
 export function Agent() {
   const a = useAgentSession();
@@ -12,6 +12,7 @@ export function Agent() {
   const [color, setColor] = useState("#ffcc00");
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const t = a.tools;
+  const g = a.gallery;
   const overlayTool = tool === "pen" ? "draw" : tool === "text" ? "pointer" : tool;
   const resume = t.resume;
   useEffect(() => { if (!t.frozen) setTool((x) => (x === "pen" || x === "rect" || x === "text" ? "pointer" : x)); }, [t.frozen]);
@@ -39,10 +40,14 @@ export function Agent() {
             )}
           </div>
           <Toolbar tool={tool} onTool={setTool} color={color} onColor={setColor} frozen={!!t.frozen}
-            onFreeze={t.freeze} onResume={resume} onClear={t.clear} onSnapshot={noop} onAnalyze={noop}
+            onFreeze={t.freeze} onResume={resume} onClear={t.clear} onSnapshot={g.snapshot} onAnalyze={g.analyze} canAnalyze={!!g.selectedId && !g.analyzing}
             muted={a.muted} onMute={a.toggleMute} onEnd={a.end} />
         </main>
-        <aside style={{ width: 240 }} aria-label="Gallery" />
+        <aside style={{ width: 240 }} aria-label="Gallery">
+          <Gallery items={g.items} selectedId={g.selectedId} onSelect={g.select} busy={g.analyzing}>
+            {g.result && <SuggestionLayer result={g.result} onSend={(p) => g.sendPart(p, color)} />}
+          </Gallery>
+        </aside>
       </div>
     </div>
   );

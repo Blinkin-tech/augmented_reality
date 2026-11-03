@@ -6,7 +6,7 @@ export interface ToolbarProps {
   tool: Tool; onTool(t: Tool): void;
   color: string; onColor(c: string): void;
   frozen: boolean; onFreeze(): void; onResume(): void;
-  onClear(): void; onSnapshot(): void; onAnalyze(): void;
+  onClear(): void; onSnapshot(): void; onAnalyze(): void; canAnalyze?: boolean;
   muted: boolean; onMute(): void; onEnd(): void;
 }
 
@@ -21,7 +21,7 @@ export function Toolbar(p: ToolbarProps) {
       <button data-testid="freeze" onClick={p.frozen ? p.onResume : p.onFreeze}>{p.frozen ? "Resume" : "Freeze"}</button>
       <button onClick={p.onClear}>Clear</button>
       <button data-testid="snapshot" onClick={p.onSnapshot}>Snapshot</button>
-      <button onClick={p.onAnalyze}>Analyze</button>
+      <button data-testid="analyze" disabled={!p.canAnalyze} onClick={p.onAnalyze}>Analyze</button>
       <button onClick={p.onMute}>{p.muted ? "Unmute" : "Mute"}</button>
       <button onClick={p.onEnd}>End</button>
     </div>
