@@ -10,14 +10,17 @@ export interface SignalHandlers {
   onSignal(m: SignalMessage): void;
   onEnded(): void;
   onStatus(s: SignalStatus): void;
+  onError?(message: string): void;
 }
 
 export interface SignalOptions {
   WebSocketImpl?: typeof WebSocket;
   now?: () => number;
   setTimeoutImpl?: typeof setTimeout;
+  clearTimeoutImpl?: typeof clearTimeout;
 }
 
+const CONNECTING = 0;
 const OPEN = 1;
 
 export class SignalClient {
@@ -25,14 +28,17 @@ export class SignalClient {
   private attempt = 0;
   private downSince = 0;
   private closed = false;
+  private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly WS: typeof WebSocket;
   private readonly now: () => number;
   private readonly later: typeof setTimeout;
+  private readonly clearLater: typeof clearTimeout;
 
   constructor(private url: string, private h: SignalHandlers, opts: SignalOptions = {}) {
     this.WS = opts.WebSocketImpl ?? WebSocket;
     this.now = opts.now ?? Date.now;
     this.later = opts.setTimeoutImpl ?? setTimeout;
+    this.clearLater = opts.clearTimeoutImpl ?? clearTimeout;
     this.h.onStatus("connecting");
     this.connect();
   }
@@ -41,28 +47,31 @@ export class SignalClient {
     const ws = new this.WS(this.url);
     this.ws = ws;
     ws.onopen = () => {
+      if (ws !== this.ws) return;
       this.attempt = 0;
       this.downSince = 0;
       this.h.onStatus("open");
     };
     ws.onmessage = (e: MessageEvent) => {
+      if (ws !== this.ws) return;
       let m: any;
       try { m = JSON.parse(e.data as string); } catch { return; }
       switch (m?.type) {
         case "joined": this.h.onJoined(m); break;
         case "peer-joined": this.h.onPeerJoined(); break;
         case "peer-left": this.h.onPeerLeft(); break;
+        case "error": this.h.onError?.(m.message); break;
         case "offer": case "answer": case "ice": this.h.onSignal(m); break;
       }
     };
     ws.onclose = (e: CloseEvent) => {
-      if (this.closed) return;
+      if (ws !== this.ws || this.closed) return;
       if (e.code === 4000) { this.h.onEnded(); return; }
       if (e.code === 4404 || e.code === 4409) { this.h.onStatus("lost"); return; }
       if (!this.downSince) this.downSince = this.now();
       if (giveUp(this.now() - this.downSince)) { this.h.onStatus("lost"); return; }
       this.h.onStatus("reconnecting");
-      this.later(() => { if (!this.closed) this.connect(); }, nextDelay(this.attempt++));
+      this.timer = this.later(() => { this.timer = undefined; if (!this.closed) this.connect(); }, nextDelay(this.attempt++));
     };
   }
 
@@ -72,6 +81,8 @@ export class SignalClient {
 
   close(): void {
     this.closed = true;
-    this.ws?.close();
+    if (this.timer !== undefined) { this.clearLater(this.timer); this.timer = undefined; }
+    const rs = this.ws?.readyState;
+    if (rs === undefined || rs === CONNECTING || rs === OPEN) this.ws?.close();
   }
 }

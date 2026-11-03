@@ -17,4 +17,43 @@ describe("SignalClient", () => {
     FakeWS.instances[1].onclose!({ code: 4409, reason: "role taken" }); expect(h.onStatus).toHaveBeenLastCalledWith("lost"); expect(timeouts).toHaveLength(1);
     c.close();
   });
+
+  function setup(extra: object = {}) {
+    FakeWS.instances.length = 0;
+    const h: any = { onJoined: vi.fn(), onPeerJoined: vi.fn(), onPeerLeft: vi.fn(), onSignal: vi.fn(), onEnded: vi.fn(), onStatus: vi.fn(), ...extra };
+    const timeouts: Array<[() => void, number]> = [];
+    const clearTimeoutImpl = vi.fn();
+    const c = new SignalClient("ws://x", h, { WebSocketImpl: FakeWS as any, now: () => 0, clearTimeoutImpl: clearTimeoutImpl as any, setTimeoutImpl: ((fn: () => void, ms: number) => { timeouts.push([fn, ms]); return 42; }) as any });
+    return { h, c, timeouts, clearTimeoutImpl };
+  }
+
+  it("dispatches error to onError and tolerates its absence", () => {
+    const onError = vi.fn();
+    const a = setup({ onError });
+    FakeWS.instances[0].onmessage!({ data: JSON.stringify({ type: "error", message: "bad" }) });
+    expect(onError).toHaveBeenCalledWith("bad");
+    const b = setup();
+    expect(() => FakeWS.instances[0].onmessage!({ data: JSON.stringify({ type: "error", message: "bad" }) })).not.toThrow();
+    a.c.close(); b.c.close();
+  });
+
+  it("close() clears a pending reconnect timer", () => {
+    const { c, timeouts, clearTimeoutImpl } = setup();
+    FakeWS.instances[0].onclose!({ code: 1006, reason: "" });
+    c.close();
+    expect(clearTimeoutImpl).toHaveBeenCalledWith(42);
+    timeouts[0][0]();
+    expect(FakeWS.instances).toHaveLength(1);
+  });
+
+  it("ignores a late close from a replaced socket", () => {
+    const { c, timeouts } = setup();
+    const first = FakeWS.instances[0];
+    first.onclose!({ code: 1006, reason: "" });
+    timeouts[0][0]();
+    expect(FakeWS.instances).toHaveLength(2);
+    first.onclose!({ code: 1006, reason: "" });
+    expect(timeouts).toHaveLength(1);
+    c.close();
+  });
 });
