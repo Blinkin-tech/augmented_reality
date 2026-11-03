@@ -1,0 +1,102 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { SignalClient } from "../rtc/signalClient";
+import { Peer } from "../rtc/peer";
+import { ControlReceiver } from "./controlReceiver";
+
+export type Phase = "loading" | "notfound" | "ended" | "consent" | "denied" | "active";
+const TURN_HINT_MS = 20000;
+
+export function useCustomerSession(code: string) {
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [status, setStatus] = useState("waiting for agent");
+  const [stream, setStream] = useState<MediaStream>();
+  const [muted, setMuted] = useState(false);
+  const [, bump] = useState(0);
+  const [slow, setSlow] = useState(false);
+  const rx = useRef<ControlReceiver>();
+  const sig = useRef<SignalClient>();
+  const peer = useRef<Peer>();
+  const conn = useRef<RTCPeerConnectionState>("new");
+  const stop = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/sessions/${code}`).then(async (r) => {
+      if (!live) return;
+      if (!r.ok) return setPhase("notfound");
+      setPhase((await r.json()).state === "ended" ? "ended" : "consent");
+    }).catch(() => live && setPhase("notfound"));
+    return () => { live = false; stop.current(); };
+  }, [code]);
+
+  useEffect(() => {
+    if (phase !== "active" || status.startsWith("live") || status === "ended") { setSlow(false); return; }
+    const t = setTimeout(() => setSlow(true), TURN_HINT_MS);
+    return () => clearTimeout(t);
+  }, [phase, status]);
+
+  const start = useCallback(async () => {
+    let media: MediaStream;
+    try {
+      const wanted = { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true };
+      media = await navigator.mediaDevices.getUserMedia(wanted).catch((e) => {
+        if (e?.name === "OverconstrainedError") return navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        throw e;
+      });
+    } catch { return setPhase("denied"); }
+    setStream(media);
+    setPhase("active");
+    try { await navigator.wakeLock?.request("screen"); } catch { /* optional */ }
+
+    let ice: RTCIceServer[] = [];
+    const connect = () => {
+      peer.current?.close();
+      conn.current = "new";
+      const p = new Peer({
+        role: "customer", iceServers: ice, signal: sig.current!,
+        onTrack: () => {},
+        onControl: (ch) => {
+          rx.current = new ControlReceiver({ send: (m) => ch.readyState === "open" && ch.send(JSON.stringify(m)), onChange: () => bump((n) => n + 1) });
+          ch.onmessage = (ev) => { void rx.current?.onMessage(ev.data); };
+        },
+        onState: (s) => {
+          conn.current = s;
+          if (s === "connected") setStatus("live");
+          else if (s === "connecting") setStatus("connecting");
+          else if (s === "disconnected" || s === "failed") setStatus("agent reconnecting");
+        },
+      });
+      peer.current = p;
+      void p.start(media);
+    };
+    let wasOpen = false;
+    sig.current = new SignalClient(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=customer&code=${code}`, {
+      onJoined: (m) => { ice = m.iceServers ?? []; if (m.peerPresent) { setStatus("connecting"); connect(); } },
+      onPeerJoined: () => { if (conn.current !== "connected") { setStatus("connecting"); connect(); } },
+      onPeerLeft: () => setStatus("agent reconnecting"),
+      onSignal: (m) => { void peer.current?.handleSignal(m); },
+      onEnded: () => { setStatus("ended"); setPhase("ended"); },
+      onStatus: (s) => {
+        if (s === "reconnecting") setStatus("reconnecting");
+        else if (s === "lost") setStatus("connection lost");
+        else if (s === "open") { if (wasOpen) { setStatus("connecting"); connect(); } wasOpen = true; }
+      },
+    });
+    stop.current = () => { sig.current?.close(); peer.current?.close(); media.getTracks().forEach((t) => t.stop()); };
+  }, [code]);
+
+  const toggleMute = () => {
+    const next = !muted;
+    stream?.getAudioTracks().forEach((t) => (t.enabled = !next));
+    setMuted(next);
+  };
+
+  const end = async () => {
+    await fetch(`/api/sessions/${code}/end`, { method: "POST" }).catch(() => {});
+    stop.current();
+    setPhase("ended");
+  };
+
+  const shown = slow ? `${status} (relay may be needed)` : status;
+  return { phase, status: shown, stream, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
+}
