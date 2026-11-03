@@ -15,7 +15,7 @@ describe("agent nextAction", () => {
 });
 
 describe("agent shownStatus", () => {
-  it("shows connecting while the peer is connected but the channel is not open", () => expect(shownStatus("live", false)).toBe("connecting"));
+  it("shows connecting while the peer is connected but the channel or video is not ready", () => expect(shownStatus("live", false)).toBe("connecting"));
   it("shows live once the channel is open", () => expect(shownStatus("live", true)).toBe("live"));
   it("passes other statuses through", () => {
     expect(shownStatus("customer reconnecting", false)).toBe("customer reconnecting");

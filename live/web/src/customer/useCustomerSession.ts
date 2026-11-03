@@ -119,5 +119,5 @@ export function useCustomerSession(code: string) {
 
   const base = closeReason ? `${status} (${closeReason})` : status;
   const shown = slow ? `${base} (relay may be needed)` : base;
-  return { phase, status: shown, stream, remote, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] }, state: () => rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
+  return { phase, status: shown, lost: status === "connection lost", stream, remote, muted, start, toggleMute, end, view: rx.current?.state() ?? { frozen: null, shapes: [], transients: [] }, state: () => rx.current?.state() ?? { frozen: null, shapes: [], transients: [] } };
 }

@@ -16,13 +16,17 @@ export function Agent() {
   const g = a.gallery;
   const overlayTool = tool === "pen" ? "draw" : tool === "text" ? "pointer" : tool;
   const resume = t.resume;
+  useEffect(() => { if (!a.stream) setFrame({ w: 0, h: 0 }); }, [a.stream]);
+  useEffect(() => { a.setVideoReady(frame.w > 0 && frame.h > 0); }, [frame.w, frame.h]);
   useEffect(() => { installDebugHook({ status: () => a.status, gallery: () => g.items }); });
   useEffect(() => { if (!t.frozen) setTool((x) => (x === "pen" || x === "rect" || x === "text" ? "pointer" : x)); }, [t.frozen]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <SessionPanel session={a.session} onNew={a.newSession} />
-      <div role="status" data-testid="status" style={{ padding: "0 12px" }}>{a.status}{a.note && <span> ({a.note})</span>}</div>
+      <div role="status" data-testid="status" style={{ padding: "0 12px" }}>{a.status}{a.note && <span> ({a.note})</span>}
+        {a.lost && <button style={{ marginLeft: 8 }} onClick={() => location.reload()}>Reload</button>}
+      </div>
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <div data-testid="video-overlay" style={{ flex: 1, minHeight: 0, position: "relative" }}>

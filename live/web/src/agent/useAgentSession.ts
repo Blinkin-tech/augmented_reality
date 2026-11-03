@@ -19,9 +19,12 @@ export function nextAction(event: AgentEvent, _state: { hasPeer: boolean }): "co
   return "none";
 }
 
-/** "live" needs both a connected peer and an open guidance channel; until then it reads "connecting". */
-export function shownStatus(status: string, channelOpen: boolean, closeReason = ""): string {
-  const s = status === "live" && !channelOpen ? "connecting" : status;
+/**
+ * "live" needs a connected peer, an open guidance channel and a video frame to aim at
+ * (clicks before the first frame have no picture to map to); until then it reads "connecting".
+ */
+export function shownStatus(status: string, ready: boolean, closeReason = ""): string {
+  const s = status === "live" && !ready ? "connecting" : status;
   return closeReason ? `${s} (${closeReason})` : s;
 }
 
@@ -33,6 +36,7 @@ export function useAgentSession() {
   const [note, setNote] = useState("");
   const [channelOpen, setChannelOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
+  const [videoReady, setVideoReady] = useState(false);
   const [, bump] = useState(0);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const sig = useRef<SignalClient>();
@@ -156,8 +160,8 @@ export function useAgentSession() {
   };
 
   return {
-    session, status: shownStatus(status, channelOpen, closeReason), stream, muted, newSession, toggleMute, end,
-    note, channelOpen, pointer, arrow, tools, gallery,
+    session, status: shownStatus(status, channelOpen && videoReady, closeReason), lost: status === "connection lost", stream, muted, newSession, toggleMute, end,
+    note, channelOpen, setVideoReady, pointer, arrow, tools, gallery,
     view: sender.current?.local() ?? { shapes: [], transients: [] },
   };
 }

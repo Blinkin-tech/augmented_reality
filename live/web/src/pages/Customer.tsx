@@ -35,6 +35,7 @@ export function Customer() {
       <VideoOverlay stream={s.stream} frozen={s.view.frozen} shapes={s.view.shapes} transients={s.view.transients} frameSize={frame} onFrameSize={setFrame} muted />
       <div className="bar">
         <span role="status">{s.status}</span>
+        {s.lost && <button onClick={() => location.reload()}>Reload</button>}
         <button onClick={s.toggleMute}>{s.muted ? "Unmute" : "Mute"}</button>
         <button onClick={s.end}>End</button>
       </div>

@@ -8,6 +8,10 @@ type Tools = ReturnType<typeof useFreezeTools>;
 export const shouldRefreeze = (frozen: boolean, frozenSnapshotId: string | undefined, selectedId: string): boolean =>
   !frozen || frozenSnapshotId !== selectedId;
 
+/** Corner points of a part box, clamped to the frame so the customer never drops the rect. */
+export const partRect = ([x, y, w, h]: [number, number, number, number]): [[number, number], [number, number]] =>
+  [[x, y], [Math.min(1, x + w), Math.min(1, y + h)]];
+
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Snapshot gallery, analyze and "send part" flow for the agent console. */
@@ -80,8 +84,8 @@ export function useGallery(
         const frozen = await t.freezeBytes(new Uint8Array(await blob.arrayBuffer()), width, height);
         setSource({ id: item.id, frozen });
       }
-      const [x, y, w, h] = part.box;
-      t.rect([[x, y], [x + w, y + h]], color);
+      const [x, y] = part.box;
+      t.rect(partRect(part.box), color);
       t.text([x, y], part.label, color);
     } catch (e) {
       setNote(`send failed: ${msg(e)}`);

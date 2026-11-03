@@ -14,6 +14,8 @@ test("agent guides a customer end to end", async ({ browser }) => {
   const box = (await agent.getByTestId("video-overlay").boundingBox())!;
   await agent.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect.poll(async () => cust.evaluate(() => (window as any).__live.state().transients.length)).toBe(1);
+  const [px, py] = await cust.evaluate(() => (window as any).__live.state().transients[0].pts[0]);
+  expect(px).toBeCloseTo(0.5, 2); expect(py).toBeCloseTo(0.5, 2);
 
   await agent.getByTestId("freeze").click();
   await expect.poll(async () => cust.evaluate(() => (window as any).__live.state().frozen !== null), { timeout: 15000 }).toBe(true);
