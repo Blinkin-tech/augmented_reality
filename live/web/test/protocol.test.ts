@@ -44,11 +44,25 @@ describe("chunks", () => {
     a.add(splitFrame(new Uint8Array(50))[0].buffer);
     expect(a.done()).toBe(true); expect(a.result()).toBeUndefined();
   });
-  it("returns undefined when an index is missing or out of range", () => {
-    const parts = splitFrame(new Uint8Array(10));
-    const a = new FrameAssembler(10, 1);
+  it("ignores out-of-range indexes and still completes", () => {
+    const data = new Uint8Array(CHUNK_SIZE).map((_, i) => i % 251);
+    const parts = splitFrame(data);
+    expect(parts).toHaveLength(2);
+    const a = new FrameAssembler(data.length, 2);
     const bad = parts[0].slice(); new DataView(bad.buffer).setUint32(0, 5);
     a.add(bad.buffer);
+    a.add(parts[0].slice().buffer);
+    expect(a.done()).toBe(false);
+    expect(a.result()).toBeUndefined();
+    a.add(parts[1].slice().buffer);
+    expect(a.done()).toBe(true);
+    expect(a.result()).toEqual(data);
+  });
+  it("returns undefined for an absurd expectedBytes without throwing", () => {
+    const a = new FrameAssembler(1e12, 1);
+    a.add(splitFrame(new Uint8Array(10))[0].buffer);
+    expect(a.done()).toBe(true);
+    expect(() => a.result()).not.toThrow();
     expect(a.result()).toBeUndefined();
   });
 });

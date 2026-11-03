@@ -24,6 +24,7 @@ export class FrameAssembler {
   add(chunk: ArrayBuffer): void {
     if (chunk.byteLength < HEADER) return;
     const index = new DataView(chunk).getUint32(0);
+    if (index >= this.expectedChunks) return;
     this.parts.set(index, new Uint8Array(chunk, HEADER));
   }
 
@@ -32,15 +33,20 @@ export class FrameAssembler {
   }
 
   result(): Uint8Array | undefined {
-    const out = new Uint8Array(this.expectedBytes);
     let total = 0;
     for (let i = 0; i < this.expectedChunks; i++) {
       const p = this.parts.get(i);
       if (!p) return undefined;
       total += p.length;
-      if (total > this.expectedBytes) return undefined;
-      out.set(p, total - p.length);
     }
-    return total === this.expectedBytes ? out : undefined;
+    if (total !== this.expectedBytes) return undefined;
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (let i = 0; i < this.expectedChunks; i++) {
+      const p = this.parts.get(i)!;
+      out.set(p, offset);
+      offset += p.length;
+    }
+    return out;
   }
 }
