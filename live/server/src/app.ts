@@ -5,10 +5,13 @@ import type { Config } from "./config";
 import type { SessionStore } from "./sessions";
 import { sessionsRouter } from "./routes/sessions";
 import { iceRouter } from "./routes/ice";
+import { snapshotsRouter } from "./routes/snapshots";
+import type { SnapshotStore } from "./snapshots";
 
 export interface AppDeps {
   store: SessionStore;
   config: Config;
+  snapshots: SnapshotStore;
 }
 
 export function createApp(deps: AppDeps): express.Express {
@@ -18,6 +21,7 @@ export function createApp(deps: AppDeps): express.Express {
   const api = express.Router();
   api.use(express.json());
   api.use("/sessions", sessionsRouter(deps));
+  api.use("/sessions", snapshotsRouter(deps));
   api.use("/ice", iceRouter(deps));
   app.use("/api", api);
 

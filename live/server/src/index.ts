@@ -2,6 +2,7 @@ import http from "node:http";
 import { createApp } from "./app";
 import { loadConfig, type Config } from "./config";
 import { SessionStore } from "./sessions";
+import { SnapshotStore } from "./snapshots";
 
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const EXPIRE_INTERVAL_MS = 60 * 1000;
@@ -10,7 +11,7 @@ export async function startServer(
   config: Config,
 ): Promise<{ server: http.Server; store: SessionStore; close(): Promise<void> }> {
   const store = new SessionStore({ ttlMs: SESSION_TTL_MS });
-  const app = createApp({ store, config });
+  const app = createApp({ store, config, snapshots: new SnapshotStore(config.dataDir) });
   const server = http.createServer(app);
 
   await new Promise<void>((resolve, reject) => {
