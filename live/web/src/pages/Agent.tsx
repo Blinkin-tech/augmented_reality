@@ -26,7 +26,7 @@ export function Agent() {
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <div data-testid="video-overlay" style={{ flex: 1, minHeight: 0, position: "relative" }}>
-            <VideoOverlay stream={a.stream} shapes={a.view.shapes} transients={a.view.transients} tool={overlayTool}
+            <VideoOverlay stream={a.stream} shapes={a.view.shapes} transients={a.view.transients} tool={a.channelOpen ? overlayTool : undefined}
               frameSize={frame} onFrameSize={setFrame} muted={false}
               frozen={t.frozen} onVideoEl={t.setVideoEl}
               onPointer={tool === "text" ? t.openText : a.pointer}
@@ -41,7 +41,7 @@ export function Agent() {
                 }} />
             )}
           </div>
-          <Toolbar tool={tool} onTool={setTool} color={color} onColor={setColor} frozen={!!t.frozen}
+          <Toolbar tool={tool} onTool={setTool} toolsDisabled={!a.channelOpen} color={color} onColor={setColor} frozen={!!t.frozen}
             onFreeze={t.freeze} onResume={resume} onClear={t.clear} onSnapshot={g.snapshot} onAnalyze={g.analyze} canAnalyze={!!g.selectedId} analyzing={g.analyzing}
             muted={a.muted} onMute={a.toggleMute} onEnd={a.end} />
         </main>

@@ -9,8 +9,7 @@ test("agent guides a customer end to end", async ({ browser }) => {
   await cust.goto(link!.replace(/\/s\//, "/s/") + "?debug=1"); await cust.getByTestId("start-camera").click();
   await expect(agent.getByTestId("status")).toHaveText(/live/, { timeout: 30000 });
 
-  // "live" is the peer-connection state; wait until frames are flowing so the control channel is ready too.
-  await expect.poll(async () => agent.evaluate(() => document.querySelector("video")?.videoWidth ?? 0), { timeout: 15000 }).toBeGreaterThan(0);
+  // "live" means the peer is connected and the guidance channel is open.
   await agent.getByTestId("tool-pointer").click();
   const box = (await agent.getByTestId("video-overlay").boundingBox())!;
   await agent.mouse.click(box.x + box.width / 2, box.y + box.height / 2);

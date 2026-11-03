@@ -9,12 +9,19 @@ import { createSession, endSession } from "../api";
 export type AgentSession = { code: string; customerUrl: string };
 export type AgentEvent = "peer-joined" | "peer-left" | "offer" | "joined";
 
-/** Decides what to do with the Peer for a signaling event. */
-export function nextAction(event: AgentEvent, state: { hasPeer: boolean }): "connect" | "disconnect" | "none" {
-  if (event === "peer-joined") return "connect";
+/**
+ * Decides what to do with the Peer for a signaling event. The customer builds a new
+ * RTCPeerConnection before every offer, so every offer gets a fresh Peer here too.
+ */
+export function nextAction(event: AgentEvent, _state: { hasPeer: boolean }): "connect" | "disconnect" | "none" {
+  if (event === "peer-joined" || event === "offer") return "connect";
   if (event === "peer-left") return "disconnect";
-  if (event === "offer" && !state.hasPeer) return "connect";
   return "none";
+}
+
+/** "live" needs both a connected peer and an open guidance channel; until then it reads "connecting". */
+export function shownStatus(status: string, channelOpen: boolean): string {
+  return status === "live" && !channelOpen ? "connecting" : status;
 }
 
 export function useAgentSession() {
@@ -88,7 +95,10 @@ export function useAgentSession() {
         onControl: (ch) => {
           const cs = new ControlSender(ch, { onAck: (a) => ackRef.current(a) });
           sender.current = cs;
-          setChannelOpen(true);
+          const sync = () => { if (sender.current === cs) setChannelOpen(ch.readyState === "open"); };
+          ch.addEventListener("open", sync);
+          ch.addEventListener("close", sync);
+          sync();
           ch.onmessage = (ev) => { if (typeof ev.data === "string") { cs.onMessage(ev.data); bump((n) => n + 1); } };
         },
         onState: (st) => {
@@ -141,7 +151,7 @@ export function useAgentSession() {
   };
 
   return {
-    session, status, stream, muted, newSession, toggleMute, end,
+    session, status: shownStatus(status, channelOpen), stream, muted, newSession, toggleMute, end,
     note, channelOpen, pointer, arrow, tools, gallery,
     view: sender.current?.local() ?? { shapes: [], transients: [] },
   };

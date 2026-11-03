@@ -80,4 +80,3 @@ The end-to-end test in `live/web/e2e/live.spec.ts` covers these steps. Run them 
 - Sessions are lost when the server restarts.
 - A session has one agent and one customer.
 - Nothing is recorded. Snapshots are saved only when the agent takes one.
-- The agent status can show live a moment before the guidance channel is open. Wait for the video before the first click.

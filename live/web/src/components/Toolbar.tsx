@@ -3,7 +3,7 @@ const TOOLS: Tool[] = ["pointer", "arrow", "pen", "rect", "text"];
 const NEEDS_FREEZE: Tool[] = ["pen", "rect", "text"];
 
 export interface ToolbarProps {
-  tool: Tool; onTool(t: Tool): void;
+  tool: Tool; onTool(t: Tool): void; toolsDisabled?: boolean;
   color: string; onColor(c: string): void;
   frozen: boolean; onFreeze(): void; onResume(): void;
   onClear(): void; onSnapshot(): void; onAnalyze(): void; canAnalyze?: boolean; analyzing?: boolean;
@@ -14,7 +14,7 @@ export function Toolbar(p: ToolbarProps) {
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", padding: 8 }}>
       {TOOLS.map((t) => (
-        <button key={t} data-testid={`tool-${t}`} aria-pressed={p.tool === t} disabled={!p.frozen && NEEDS_FREEZE.includes(t)}
+        <button key={t} data-testid={`tool-${t}`} aria-pressed={p.tool === t} disabled={p.toolsDisabled || (!p.frozen && NEEDS_FREEZE.includes(t))}
           style={p.tool === t ? { outline: "2px solid #fff" } : undefined} onClick={() => p.onTool(t)}>{t[0].toUpperCase() + t.slice(1)}</button>
       ))}
       <input type="color" aria-label="Color" value={p.color} onChange={(e) => p.onColor(e.target.value)} />
