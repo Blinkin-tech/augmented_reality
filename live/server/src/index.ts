@@ -3,6 +3,8 @@ import { createApp } from "./app";
 import { loadConfig, type Config } from "./config";
 import { SessionStore } from "./sessions";
 import { SnapshotStore } from "./snapshots";
+import { attachSignaling } from "./signaling";
+import { buildIceServers } from "./routes/ice";
 
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const EXPIRE_INTERVAL_MS = 60 * 1000;
@@ -13,6 +15,7 @@ export async function startServer(
   const store = new SessionStore({ ttlMs: SESSION_TTL_MS });
   const app = createApp({ store, config, snapshots: new SnapshotStore(config.dataDir) });
   const server = http.createServer(app);
+  const wss = attachSignaling(server, { store, iceServers: buildIceServers(config) });
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -31,6 +34,8 @@ export async function startServer(
     close: () =>
       new Promise<void>((resolve, reject) => {
         clearInterval(timer);
+        for (const client of wss.clients) client.terminate();
+        wss.close();
         server.close((err) => (err ? reject(err) : resolve()));
         server.closeAllConnections();
       }),
