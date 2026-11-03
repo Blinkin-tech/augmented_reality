@@ -51,4 +51,12 @@ describe("signaling", () => {
     await fetch(base.replace("ws", "http") + `/api/sessions/${code}/end`, { method: "POST" });
     expect(await closed(a)).toEqual([4000, "session ended"]);
   });
+  it("survives an oversized frame: drops that socket and keeps serving the code", async () => {
+    const code = await newCode();
+    const a = await open(code, "agent"); await next(a);
+    const gone = closed(a);
+    a.send("x".repeat(70000));
+    await gone;
+    const a2 = await open(code, "agent"); expect(await next(a2)).toMatchObject({ type: "joined", role: "agent" }); a2.close();
+  });
 });

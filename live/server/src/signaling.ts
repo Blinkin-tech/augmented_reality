@@ -4,6 +4,8 @@ import { parseClientSignal } from "./protocol/signal";
 import type { RTCIceServerLike } from "./routes/ice";
 import type { SessionStore } from "./sessions";
 
+const MAX_PAYLOAD_BYTES = 64 * 1024;
+
 type Role = "agent" | "customer";
 
 const isRole = (value: string | null): value is Role => value === "agent" || value === "customer";
@@ -18,9 +20,10 @@ export function attachSignaling(
   server: http.Server,
   deps: { store: SessionStore; iceServers: RTCIceServerLike[] },
 ): WebSocketServer {
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wss = new WebSocketServer({ server, path: "/ws", maxPayload: MAX_PAYLOAD_BYTES });
 
   wss.on("connection", (ws, req) => {
+    ws.on("error", () => ws.terminate());
     const url = new URL(req.url ?? "", "http://x");
     const role = url.searchParams.get("role");
     const session = deps.store.get(url.searchParams.get("code") ?? "");
