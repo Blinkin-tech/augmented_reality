@@ -16,13 +16,22 @@ Live visual support lets a customer share their phone camera with a support agen
 
 ## Demo through a tunnel
 
-A tunnel gives the customer a public link to your machine. Phones cannot reach `localhost`.
+A tunnel gives the customer a public link to your machine. Phones cannot reach `localhost`. Most tunnels also give you HTTPS, which phone browsers need for the camera.
+
+Tunnel the production server. This is the recommended path:
+
+1. Run `npm run build`.
+2. Run `npm start`. The server runs on port 3000.
+3. In a second terminal, run `ngrok http 3000`, or run `cloudflared tunnel --url http://localhost:3000`.
+4. Open `/agent` through the tunnel URL, for example `https://<tunnel-host>/agent`.
+
+You can tunnel the development server instead:
 
 1. Run `npm run dev`.
 2. In a second terminal, run `ngrok http 5173`, or run `cloudflared tunnel --url http://localhost:5173`.
-3. Set `PUBLIC_URL` to the tunnel URL and restart the server. Or open the console through the tunnel URL.
+3. Open `/agent` through the tunnel URL.
 
-The customer link uses `PUBLIC_URL` as its origin when you set it. Otherwise it uses the origin of the request.
+The customer link uses `PUBLIC_URL` as its origin when you set it. Otherwise it uses the origin of the request. If the customer link does not show the tunnel URL, set `PUBLIC_URL` to the tunnel URL and restart the server. This works for both paths.
 
 ## TURN relay
 
@@ -65,15 +74,17 @@ Without `ANTHROPIC_API_KEY`, the analyze endpoint uses a mock provider. The mock
 
 ## Manual demo checklist
 
-The end-to-end test in `live/web/e2e/live.spec.ts` covers these steps. Run them by hand with a laptop and a phone on mobile data. Run the list twice: once without TURN, and once with TURN.
+The end-to-end test in `live/web/e2e/live.spec.ts` covers the steps from New session to Snapshot, except the voice check. Run them by hand with a laptop and a phone on mobile data. Start the production server and a tunnel to port 3000, as described in "Demo through a tunnel". Run the list twice: once without TURN, and once with TURN.
 
-1. On the laptop, open `/agent`. Select New session.
-2. On the phone, open the customer link. Read the consent text. Tap Start camera.
-3. Wait until the agent status shows live and the video appears.
-4. Select the pointer tool. Click the video. The customer sees a pointer.
-5. Select Freeze. The customer view stops on one frame.
-6. Select the rect tool. Drag a rectangle on the video. The customer sees the rectangle.
-7. Select Snapshot. The gallery shows one snapshot.
+1. On the laptop, open `/agent` through the tunnel URL. Select New session.
+2. Check that the customer link starts with the tunnel URL.
+3. On the phone, open the customer link. Read the consent text. Tap Start camera.
+4. Wait until the agent status shows live and the video appears.
+5. Speak on the laptop. The phone plays the agent's voice.
+6. Select the pointer tool. Click the video. The customer sees a pointer.
+7. Select Freeze. The customer view stops on one frame.
+8. Select the rect tool. Drag a rectangle on the video. The customer sees the rectangle.
+9. Select Snapshot. The gallery shows one snapshot.
 
 ## Known limits
 
