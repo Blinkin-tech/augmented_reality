@@ -2,13 +2,14 @@ import { decode, encode, type ControlMessage, type Shape } from "../protocol/mes
 import { splitFrame } from "../protocol/chunks";
 import type { Transient } from "../overlay/renderer";
 
-const POINTER_MS = 3000;
-const ARROW_MS = 5000;
+export const POINTER_MS = 3000;
+export const ARROW_MS = 5000;
 const POINTER_COLOR = "#ffcc00";
 
 export interface ControlChannel {
   send(d: string | ArrayBuffer): void;
   bufferedAmount: number;
+  readyState?: string;
 }
 
 /** Sends agent control messages and keeps the agent's local copy of what the customer sees. */
@@ -24,7 +25,9 @@ export class ControlSender {
     this.now = opts.now ?? Date.now;
   }
 
-  private send(m: ControlMessage): void { this.ch.send(encode(m)); }
+  private get open(): boolean { return this.ch.readyState === undefined || this.ch.readyState === "open"; }
+
+  private send(m: ControlMessage): void { if (this.open) this.ch.send(encode(m)); }
 
   pointer(x: number, y: number): void {
     this.send({ t: "pointer", x, y });
@@ -50,6 +53,7 @@ export class ControlSender {
 
   freeze(jpeg: Uint8Array, w: number, h: number): string {
     const frameId = `f${this.now()}-${++this.seq}`;
+    if (!this.open) return frameId;
     const chunks = splitFrame(jpeg);
     this.send({ t: "freeze-start", frameId, bytes: jpeg.length, chunks: chunks.length, w, h });
     for (const c of chunks) this.ch.send(c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength) as ArrayBuffer);

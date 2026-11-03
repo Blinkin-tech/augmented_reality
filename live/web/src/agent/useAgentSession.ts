@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SignalClient } from "../rtc/signalClient";
 import { Peer } from "../rtc/peer";
-import { ControlSender } from "./controlSender";
+import { ControlSender, POINTER_MS, ARROW_MS } from "./controlSender";
 
 export type AgentSession = { code: string; customerUrl: string };
 export type AgentEvent = "peer-joined" | "peer-left" | "offer" | "joined";
@@ -19,20 +19,43 @@ export function useAgentSession() {
   const [status, setStatus] = useState("no session");
   const [stream, setStream] = useState<MediaStream>();
   const [muted, setMuted] = useState(false);
+  const [note, setNote] = useState("");
+  const [channelOpen, setChannelOpen] = useState(false);
   const [, bump] = useState(0);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const sig = useRef<SignalClient>();
   const peer = useRef<Peer>();
   const sender = useRef<ControlSender>();
   const local = useRef<MediaStream>();
   const stop = useRef<() => void>(() => {});
 
-  useEffect(() => () => stop.current(), []);
+  useEffect(() => () => {
+    stop.current();
+    timers.current.forEach(clearTimeout);
+    timers.current.clear();
+  }, []);
+
+  const dropSender = () => { sender.current = undefined; setChannelOpen(false); bump((n) => n + 1); };
+
+  const expireAt = (ms: number) => {
+    const t = setTimeout(() => { timers.current.delete(t); bump((n) => n + 1); }, ms + 20);
+    timers.current.add(t);
+  };
+
+  const pointer = useCallback((fx: number, fy: number) => {
+    sender.current?.pointer(fx, fy); bump((n) => n + 1); expireAt(POINTER_MS);
+  }, []);
+
+  const arrow = useCallback((from: [number, number], to: [number, number], color: string) => {
+    sender.current?.arrow(from[0], from[1], to[0], to[1], color); bump((n) => n + 1); expireAt(ARROW_MS);
+  }, []);
 
   const newSession = useCallback(async () => {
     stop.current();
     setStream(undefined);
     setMuted(false);
-    sender.current = undefined;
+    dropSender();
+    setNote("");
     setStatus("no session");
     let micNote = "";
     let audio: MediaStream | undefined;
@@ -42,17 +65,20 @@ export function useAgentSession() {
     if (!r || !r.ok) { audio?.getTracks().forEach((t) => t.stop()); return setStatus("connection lost"); }
     const s: AgentSession = await r.json();
     setSession(s);
-    setStatus(micNote ? `waiting for customer (${micNote})` : "waiting for customer");
+    setNote(micNote);
+    setStatus("waiting for customer");
 
     let ice: RTCIceServer[] = [];
     const connect = () => {
       peer.current?.close();
+      dropSender();
       const p = new Peer({
         role: "agent", iceServers: ice, signal: sig.current!,
         onTrack: setStream,
         onControl: (ch) => {
           const cs = new ControlSender(ch);
           sender.current = cs;
+          setChannelOpen(true);
           ch.onmessage = (ev) => { if (typeof ev.data === "string") { cs.onMessage(ev.data); bump((n) => n + 1); } };
         },
         onState: (st) => {
@@ -70,7 +96,7 @@ export function useAgentSession() {
         if (nextAction("peer-joined", { hasPeer: !!peer.current }) === "connect") { setStatus("connecting"); connect(); }
       },
       onPeerLeft: () => {
-        if (nextAction("peer-left", { hasPeer: !!peer.current }) === "disconnect") { peer.current?.close(); peer.current = undefined; }
+        if (nextAction("peer-left", { hasPeer: !!peer.current }) === "disconnect") { peer.current?.close(); peer.current = undefined; dropSender(); }
         setStatus("customer reconnecting");
       },
       onSignal: (m) => {
@@ -82,7 +108,7 @@ export function useAgentSession() {
         if (st === "reconnecting") setStatus("reconnecting");
         else if (st === "lost") setStatus("connection lost");
       },
-      onError: (msg) => setStatus(`connection lost: ${msg}`),
+      onError: (msg) => setNote(msg),
     });
     stop.current = () => {
       sig.current?.close(); peer.current?.close();
@@ -106,7 +132,7 @@ export function useAgentSession() {
 
   return {
     session, status, stream, muted, newSession, toggleMute, end,
-    sender: sender.current,
+    note, channelOpen, pointer, arrow,
     view: sender.current?.local() ?? { shapes: [], transients: [] },
   };
 }

@@ -17,4 +17,9 @@ describe("ControlSender", () => {
     expect(decode(sent[3] as string)).toEqual({ t: "freeze-end", frameId: id });
     s.onMessage(JSON.stringify({ t: "ack", frameId: id, ok: false })); expect(s.lastAck).toEqual({ frameId: id, ok: false });
   });
+  it("sends nothing on a channel that is not open", () => {
+    const sent: unknown[] = []; const s = new ControlSender({ send: (d) => sent.push(d), bufferedAmount: 0, readyState: "closed" });
+    s.pointer(0.5, 0.5); s.clear(); s.freeze(new Uint8Array(10), 1, 1);
+    expect(sent).toEqual([]);
+  });
 });
