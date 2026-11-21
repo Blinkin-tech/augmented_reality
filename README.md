@@ -31,8 +31,11 @@ See the related **[Medium post](https://medium.com/@ahmetozlu93/marker-less-augm
 The demos draw their on-screen controls with a small design system based on **[Material Design 3](https://m3.material.io)** (dark colour scheme). The code is in [`shared/ui/MaterialHud.hpp`](shared/ui/MaterialHud.hpp). It is header-only and has no dependency other than OpenCV (2.4, 3.x or 4.x).
 
 <p align="center">
-  <img src="docs/hud-preview.png" width="640">
+  <img src="docs/hud-tracking.png" width="420">
+  <img src="docs/hud-searching.png" width="420">
 </p>
+
+The screenshots show the V1 demo on the OpenCV sample images `box.png` and `box_in_scene.png`. The left image shows a pattern that the demo tracks. The right image shows a blurred frame in which the demo finds no pattern.
 
 The header has three layers:
 
