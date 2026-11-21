@@ -1,0 +1,6 @@
+html, body, #root { margin: 0; height: 100%; background: #111; color: #eee; font-family: system-ui, sans-serif; }
+.center { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; box-sizing: border-box; }
+.fullscreen { position: fixed; inset: 0; }
+.bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: rgba(0, 0, 0, 0.6); }
+.bar span { flex: 1; }
+button { font-size: 16px; padding: 10px 18px; border: 0; border-radius: 6px; background: #2d6cdf; color: #fff; }

@@ -1,0 +1,13 @@
+{
+  "name": "live",
+  "private": true,
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev -w server\" \"npm:dev -w web\"",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "npm start -w server",
+    "test": "npm test -w server && npm test -w web",
+    "test:e2e": "npm run test:e2e -w web"
+  },
+  "devDependencies": { "concurrently": "^9.0.0" }
+}
