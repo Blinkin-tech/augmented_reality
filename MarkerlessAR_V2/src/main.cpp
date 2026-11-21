@@ -14,6 +14,7 @@
 #include "ARDrawingContext.hpp"
 #include "ARPipeline.hpp"
 #include "DebugHelpers.hpp"
+#include "MaterialHud.hpp"
 
 // Standard includes:
 #include <opencv2/opencv.hpp>
@@ -142,25 +143,28 @@ void processSingleImage(const cv::Mat& patternImage, CameraCalibration& calibrat
 
 bool processFrame(const cv::Mat& cameraFrame, ARPipeline& pipeline, ARDrawingContext& drawingCtx)
 {
-    // Clone image used for background (we will draw overlay on it)
-    cv::Mat img = cameraFrame.clone();
-
-    // Draw information:
-    if (pipeline.m_patternDetector.enableHomographyRefinement)
-        cv::putText(img, "Pose refinement: On   ('h' to switch off)", cv::Point(10,15), CV_FONT_HERSHEY_PLAIN, 1, CV_RGB(0,200,0));
-    else
-        cv::putText(img, "Pose refinement: Off  ('h' to switch on)",  cv::Point(10,15), CV_FONT_HERSHEY_PLAIN, 1, CV_RGB(0,200,0));
-
-    cv::putText(img, "RANSAC threshold: " + ToString(pipeline.m_patternDetector.homographyReprojectionThreshold) + "( Use'-'/'+' to adjust)", cv::Point(10, 30), CV_FONT_HERSHEY_PLAIN, 1, CV_RGB(0,200,0));
-
-    // Set a new camera frame:
-    drawingCtx.updateBackground(img);
-
     // Find a pattern and update it's detection status:
     drawingCtx.isPatternPresent = pipeline.processFrame(cameraFrame);
 
     // Update a pattern pose:
     drawingCtx.patternPose = pipeline.getPatternLocation();
+
+    // Clone image used for background (we will draw the HUD overlay on it)
+    cv::Mat img = cameraFrame.clone();
+
+    // Draw the Material Design 3 heads-up display:
+    static hud::FpsCounter fpsCounter;
+    hud::OverlayState hudState;
+    hudState.title              = "Markerless AR";
+    hudState.patternFound       = drawingCtx.isPatternPresent;
+    hudState.poseRefinement     = pipeline.m_patternDetector.enableHomographyRefinement;
+    hudState.ransacThreshold    = pipeline.m_patternDetector.homographyReprojectionThreshold;
+    hudState.ransacThresholdMax = 10.0f;
+    hudState.fps                = fpsCounter.tick();
+    hud::drawOverlay(img, hudState);
+
+    // Set a new camera frame:
+    drawingCtx.updateBackground(img);
 
     // Request redraw of the window:
     drawingCtx.updateWindow();

@@ -26,6 +26,22 @@ See the related **[Medium post](https://medium.com/@ahmetozlu93/marker-less-augm
 
 ---
 
+## Heads-up display (HUD)
+
+The demos draw their on-screen controls with a small design system based on **[Material Design 3](https://m3.material.io)** (dark colour scheme). The code is in [`shared/ui/MaterialHud.hpp`](shared/ui/MaterialHud.hpp). It is header-only and has no dependency other than OpenCV (2.4, 3.x or 4.x).
+
+<p align="center">
+  <img src="docs/hud-preview.png" width="640">
+</p>
+
+The header has three layers:
+
+- **Design tokens** (`hud::tokens`): colour roles, type scale, shape scale, spacing scale and surface opacity. Change the look here only.
+- **Components** (`hud::Painter`): card, status chip, switch, slider and keycap.
+- **Layout** (`hud::drawOverlay`): the control panel, the tracking status, the FPS chip and the keyboard hint bar.
+
+---
+
 **TODOs:**
 
 - Fixing the performance issues:

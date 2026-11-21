@@ -11,4 +11,5 @@ link_directories(${OpenCV_LIBRARY_DIR})
 link_directories(${OpenGL_LIBRARY_DIR})
 
 include_directories(${ARProject_SOURCE_DIR}/src)
+include_directories(${ARProject_SOURCE_DIR}/../shared/ui)
 add_subdirectory(src)
