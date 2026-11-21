@@ -4,6 +4,17 @@
 
 Live visual support lets a customer share their phone camera with a support agent. The agent sees the video in a browser console. The agent draws on the video to guide the customer. The video travels over WebRTC, a browser standard for live audio and video.
 
+## Code map
+
+Each source folder has a `README.md` that states its interface, invariants, and side
+effects. Start at the two roots:
+
+- [`server/src/README.md`](server/src/README.md): the Node server.
+- [`web/src/README.md`](web/src/README.md): the React web app.
+
+The harness refreshes these files when a change touches their folder. The change history
+is in [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Requirements
 
 - Node 22.

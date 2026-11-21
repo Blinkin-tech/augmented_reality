@@ -118,13 +118,26 @@ sends the run back to Phase 3 with the failing step as a finding.
    Reconcile each difference: update the document or open a follow-up issue. Never
    rewrite human-authored design prose silently.
 3. Keep `live/README.md` true for any command, variable, or limit that changed.
-4. Push the branch and open or update the pull request with `gh api` (REST; `gh pr`
+4. Refresh the per-folder READMEs. List the source folders the change touched
+   (`git diff --name-only <base>..HEAD | xargs -n1 dirname | sort -u`, folders under
+   `live/server/src` and `live/web/src` only). For each, re-run the EGM bootstrap in
+   correction mode on that folder: follow the Sub-Orchestrator Worker Flow in
+   `/egm:egm-bootstrap` with `path=<folder>`, `is_worker=true`, `target_filename=README.md`.
+   It reads the existing README, scans the code with a read-only scout, and corrects the
+   interface, invariants, and side effects while it keeps the developer notes. When a parent
+   folder's child list changed, refresh the parent too. Commit the README changes with the
+   code. Skip this step when no source folder changed.
+5. Push the branch and open or update the pull request with `gh api` (REST; `gh pr`
    fails here). Attach the demo video path and the QA verdict in the body.
-5. Write status back to the issue:
+6. Append one entry to `live/CHANGELOG.md` under a `## {YYYY-MM-DD}` heading (create the
+   heading when the date is new; newest date first). One bullet, one or two lines: what
+   changed for a user or an operator, the issue as `#<n>` when one exists, and the PR link.
+   Do not list file names. Commit it with the message `live: changelog for <short title>`.
+7. Write status back to the issue:
    `gh api -X POST repos/Blinkin-tech/augmented_reality/issues/<n>/comments -f body="Done in <PR url>. QA: <verdict>. Demo: <path>."`
    then close it: `gh api -X PATCH repos/Blinkin-tech/augmented_reality/issues/<n> -f state=closed`.
    Never delete issues; never rewrite human-authored issue text.
-6. Keep `_agents_workspace/`. Report a summary: what changed, test results, QA verdict,
+8. Keep `_agents_workspace/`. Report a summary: what changed, test results, QA verdict,
    PR link, issue link, open items.
 
 ## Data passing

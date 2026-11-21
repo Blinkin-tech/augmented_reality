@@ -25,3 +25,5 @@ work warrants it.
 | Date | Change | Target | Reason |
 |------|--------|--------|--------|
 | 2026-11-21 | Initial setup | All | — |
+| 2026-11-21 | Changelog step and per-folder README refresh in Phase 5 | `skills/live-support-orchestrator` | documentation of what was done did not update by itself |
+| 2026-11-21 | Seeded per-folder READMEs with the EGM bootstrap; code map in `live/README.md`; `live/CHANGELOG.md` | `live/` | give the drift and refresh steps a baseline |
